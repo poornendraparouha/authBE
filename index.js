@@ -1,7 +1,8 @@
 import express from "express";
-import dbConnection from "./db/db.js"
 import dotenv, { config } from "dotenv"
 import cors from "cors"
+import cookieParser from "cookie-parser"
+import dbConnection from "./db/db.js"
 import authRoute from "./routes/authRoute.js"
 
 
@@ -12,6 +13,7 @@ dbConnection()
 
 app.use(cors())
 app.use(express.json())
+app.use(cookieParser());
 app.use("/api/users", authRoute)
 
 app.get("/", (req, res)=>{

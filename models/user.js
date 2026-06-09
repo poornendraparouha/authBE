@@ -27,6 +27,9 @@ const userSchema = mongoose.Schema({
         "Password must contain at least 8 characters, 1 uppercase letter, 1 number, and 1 special character",
         ],
     },
+    refreshToken: {
+        type: String,
+    },
 }, {timestamps: true,})
 
 export default mongoose.model("User", userSchema);

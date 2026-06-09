@@ -93,8 +93,28 @@ export const userLogin = async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRES_IN },
     );
 
+    const refreshToken = jwt.sign(
+      { userId: user._id },
+      process.env.REFRESH_TOKEN_SECRET,
+      { expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN },
+    );
+
+    user.refreshToken = refreshToken;
+    await user.save();
+
     const userData = user.toObject();
     delete userData.password;
+    delete userData.refreshToken;
+
+    res.cookie(
+      "refreshToken",
+      refreshToken,
+      {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict"
+      }
+    )
 
     return res.status(200).json({
       success: true,
@@ -102,6 +122,7 @@ export const userLogin = async (req, res) => {
       token,
       data: userData,
     });
+
   } catch (error) {
     console.log("error While sign In", error);
 
@@ -120,3 +141,77 @@ export const userLogin = async (req, res) => {
     });
   }
 };
+
+export const refreshAccessToken = async (req, res) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+
+    if(!refreshToken){
+      return res.status(401).json({
+        success: false,
+        message : "Missing refresh token"
+      })
+    }
+    const decode = jwt.verify(
+      refreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    )
+    const user = await User.findById(decode.userId);
+
+    if(!user || user.refreshToken !== refreshToken){
+      return res.status(403).json({
+        success: false,
+        message: "Invalid access token"
+      })
+    }
+
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        email: user.email
+      },
+      process.env.JWT_SECRET,
+      {expiresIn: process.env.JWT_EXPIRES_IN}
+    )
+
+    return res.status(200).json({
+      success: true,
+      token
+    })
+
+  } catch (error) {
+   return res.status(403).json({
+    success: false,
+    message: "Invalid access token"
+   })
+    
+  }
+}
+
+export const logout = async (req, res)  => {
+  try {
+    await User.findByIdAndUpdate(
+      req.user.userId,
+    {
+      refreshToken: null
+    }
+    );
+
+    res.clearCookie("refreshToken",{
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: "Logged out successfully"
+  })
+
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error"
+    })
+  }
+}
