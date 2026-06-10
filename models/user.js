@@ -22,10 +22,6 @@ const userSchema = mongoose.Schema({
         type: String,
         required: [true, "pasword is required"],
         minlength: 8,
-        match: [
-        /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-        "Password must contain at least 8 characters, 1 uppercase letter, 1 number, and 1 special character",
-        ],
     },
     phone: {
         type: String,
@@ -34,7 +30,7 @@ const userSchema = mongoose.Schema({
     gender: {
         type:String,
         enum: ["Male", "Female", "Other"],
-        default: ""
+        default: null
     },
     dateOfBirth: {
         type: Date,

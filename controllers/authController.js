@@ -20,6 +20,17 @@ export const userSignup = async (req, res) => {
         message: "Email already exists",
       });
     }
+
+    const passwordRegex =
+  /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
+if (!passwordRegex.test(password)) {
+  return res.status(400).json({
+    success: false,
+    message:
+      "Password must contain at least 8 characters, 1 uppercase letter, 1 number, and 1 special character",
+  });
+}
     const hashPassword = await bcrypt.hash(password, 10);
 
     const newUser = new User({
