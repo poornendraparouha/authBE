@@ -27,8 +27,30 @@ const userSchema = mongoose.Schema({
         "Password must contain at least 8 characters, 1 uppercase letter, 1 number, and 1 special character",
         ],
     },
+    phone: {
+        type: String,
+        default: ""
+    },
+    gender: {
+        type:String,
+        enum: ["Male", "Female", "Other"],
+        default: ""
+    },
+    dateOfBirth: {
+        type: Date,
+        default: ""
+    },
+    profileImage: {
+        type: String,
+        default: ""
+    },
+    address: {
+        type: String,
+        default: ""
+    },
     refreshToken: {
         type: String,
+        default: null
     },
 }, {timestamps: true,})
 
