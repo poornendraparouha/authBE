@@ -1,6 +1,7 @@
 import User from "../models/user.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 
 export const userSignup = async (req, res) => {
   try {
@@ -224,5 +225,68 @@ export const logout = async (req, res)  => {
       success: false,
       message: "Internal server error"
     })
+  }
+}
+
+export const forgetPassword = async (req, res) => {
+  try {
+    const user = await User.findOne({email});
+    if(!user) {
+      return res.status(400).json({
+        success: false,
+        message: "User not found"
+      })
+    }
+
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
+    await user.save();
+
+    return res.status(200).json({
+        success: true,
+        resetToken,
+      });
+
+  } catch (error) {
+    console.error("Forget password Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+}
+
+export const resetPassword = async (req, res) => {
+  try {
+    const {resetToken} = req.params;
+    const {password} = req.body;
+
+    const user = await User.findOne({resetPasswordToken: resetToken, resetPasswordExpire: {$gt: Date.now()}});
+    if(!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid token"
+      })
+    }
+
+    user.password = await bcrypt.hash(password, 10)
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+
+    await user.save();
+    
+     return res.status(200).json({
+        success: true,
+        message:
+          "Password reset successfully",
+      });
+
+  } catch (error) {
+    console.error("Reset password Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 }
