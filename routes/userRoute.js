@@ -10,7 +10,7 @@ router.get("/get-users", authMiddleware, getAllUsers);
 router.put("/profile", authMiddleware, upload.single("profileImage"), UpdateUser);
 router.put("/change-password", authMiddleware, changePassword);
 router.post("/forget-password", forgetPassword);
-router.post("/reset-password", resetPassword);
+router.post("/reset-password/:token", resetPassword);
 
 
 
