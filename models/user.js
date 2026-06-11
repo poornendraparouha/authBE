@@ -1,53 +1,62 @@
 import mongoose from "mongoose";
 
-const userSchema = mongoose.Schema({
+const userSchema = mongoose.Schema(
+  {
     firstName: {
-        type: String,
-        required: [true, "first name is reqired"],
-        trim: true
+      type: String,
+      required: [true, "first name is reqired"],
+      trim: true,
     },
     lastName: {
-        type: String,
-        required: [true, "first name is reqired"],
-        trim: true
+      type: String,
+      required: [true, "first name is reqired"],
+      trim: true,
     },
     email: {
-        type: String,
-        required: [true, "email is required"],
-        unique: true,
-        lowercase: true,
-        trim: true
+      type: String,
+      required: [true, "email is required"],
+      unique: true,
+      lowercase: true,
+      trim: true,
     },
     password: {
-        type: String,
-        required: [true, "pasword is required"],
-        minlength: 8,
+      type: String,
+      required: [true, "pasword is required"],
+      minlength: 8,
     },
     phone: {
-        type: String,
-        default: ""
+      type: String,
+      default: "",
     },
     gender: {
-        type:String,
-        enum: ["Male", "Female", "Other"],
-        default: null
+      type: String,
+      enum: ["Male", "Female", "Other"],
+      default: null,
     },
     dateOfBirth: {
-        type: Date,
-        default: null
+      type: Date,
+      default: null,
     },
     profileImage: {
-        type: String,
-        default: ""
+      type: String,
+      default: "",
     },
     address: {
-        type: String,
-        default: ""
+      type: String,
+      default: "",
     },
     refreshToken: {
-        type: String,
-        default: null
+      type: String,
+      default: null,
     },
-}, {timestamps: true,})
+    resetPasswordToken: {
+      type: String,
+    },
+    resetPasswordExpire: {
+      type: Date,
+    },
+  },
+  { timestamps: true },
+);
 
 export default mongoose.model("User", userSchema);
