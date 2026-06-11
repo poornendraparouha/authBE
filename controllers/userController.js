@@ -1,5 +1,6 @@
 import User from "../models/user.js";
 import bcrypt from "bcryptjs";
+import fs from "fs";
 
 export const userProfile = async (req, res) => {
   try {
@@ -125,6 +126,38 @@ export const changePassword = async (req, res) => {
 
   } catch (error) {
     console.error("Change password error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+}
+
+export const deleteAccount = async () => {
+  try {
+    const user = User.findByIdI(req.user.userId);
+    if(!user){
+      return res.status(400).json({
+        success: false,
+        message: "User not found"
+      })
+    }
+    if(user.prfileImage){
+      const imagePath = "." + user.profileImage;
+      if(fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath)
+      }
+    }
+
+    await User.findByIdAndDelete(req.user.userId)
+    return res.status(200).json({
+        success: true,
+        message:
+          "Account deleted successfully",
+      });
+      
+  } catch (error) {
+    console.error("Account delete error:", error);
     return res.status(500).json({
       success: false,
       message: "Internal server error",
