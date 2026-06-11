@@ -1,4 +1,5 @@
 import User from "../models/user.js";
+import bcrypt from "bcryptjs";
 
 export const userProfile = async (req, res) => {
   try {
@@ -56,7 +57,7 @@ export const UpdateUser = async (req, res) => {
     if(req.file){
       updateData.profileImage = `/uploads/${req.file.filename}`
     }
-    
+
     const user = await User.findByIdAndUpdate(
       req.user.userId,
       updateData,
@@ -84,3 +85,50 @@ export const UpdateUser = async (req, res) => {
     });
   }
 };
+
+export const changePassword = async (req, res) => {
+  try {
+    const {currentPassword, newPassword} = req.body;
+
+    if(!currenPassword || !newPassword){
+      return res.status(400).json({
+        success: false,
+        mesage: "current password and new password is required"
+      })
+    }
+
+    const user = await User.findById(req.user.userId);
+
+    if(!user){
+      return res.status(400).json({
+        success: false,
+        message: "User not found"
+      })
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+    if(!isMatch){
+      return res.status(400).json({
+        success: false,
+        message: "Incorrect Password"
+      })
+    }
+
+    const hashedPassword =  await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+
+    return res.status(200).json({
+      success:true,
+      message:"Password changed successfully"
+    })
+
+
+  } catch (error) {
+    console.error("Change Password Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+}
