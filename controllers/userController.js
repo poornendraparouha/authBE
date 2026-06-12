@@ -133,16 +133,16 @@ export const changePassword = async (req, res) => {
   }
 }
 
-export const deleteAccount = async () => {
+export const deleteAccount = async (req, res) => {
   try {
-    const user = User.findByIdI(req.user.userId);
+    const user = await User.findById(req.user.userId);
     if(!user){
       return res.status(400).json({
         success: false,
         message: "User not found"
       })
     }
-    if(user.prfileImage){
+    if(user.profileImage){
       const imagePath = "." + user.profileImage;
       if(fs.existsSync(imagePath)) {
         fs.unlinkSync(imagePath)
