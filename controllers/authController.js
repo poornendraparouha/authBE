@@ -2,6 +2,7 @@ import User from "../models/user.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import transporter from "../utils/sendMail.js";
 
 export const userSignup = async (req, res) => {
   try {
@@ -23,15 +24,15 @@ export const userSignup = async (req, res) => {
     }
 
     const passwordRegex =
-  /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+      /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
-if (!passwordRegex.test(password)) {
-  return res.status(400).json({
-    success: false,
-    message:
-      "Password must contain at least 8 characters, 1 uppercase letter, 1 number, and 1 special character",
-  });
-}
+    if (!passwordRegex.test(password)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Password must contain at least 8 characters, 1 uppercase letter, 1 number, and 1 special character",
+      });
+    }
     const hashPassword = await bcrypt.hash(password, 10);
 
     const newUser = new User({
@@ -118,15 +119,11 @@ export const userLogin = async (req, res) => {
     delete userData.password;
     delete userData.refreshToken;
 
-    res.cookie(
-      "refreshToken",
-      refreshToken,
-      {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict"
-      }
-    )
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
 
     return res.status(200).json({
       success: true,
@@ -134,7 +131,6 @@ export const userLogin = async (req, res) => {
       token,
       data: userData,
     });
-
   } catch (error) {
     console.log("error While sign In", error);
 
@@ -158,84 +154,76 @@ export const refreshAccessToken = async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
 
-    if(!refreshToken){
+    if (!refreshToken) {
       return res.status(401).json({
         success: false,
-        message : "Missing refresh token"
-      })
+        message: "Missing refresh token",
+      });
     }
-    const decode = jwt.verify(
-      refreshToken,
-      process.env.REFRESH_TOKEN_SECRET
-    )
+    const decode = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
     const user = await User.findById(decode.userId);
 
-    if(!user || user.refreshToken !== refreshToken){
+    if (!user || user.refreshToken !== refreshToken) {
       return res.status(403).json({
         success: false,
-        message: "Invalid access token"
-      })
+        message: "Invalid access token",
+      });
     }
 
     const token = jwt.sign(
       {
         userId: user._id,
-        email: user.email
+        email: user.email,
       },
       process.env.JWT_SECRET,
-      {expiresIn: process.env.JWT_EXPIRES_IN}
-    )
+      { expiresIn: process.env.JWT_EXPIRES_IN },
+    );
 
     return res.status(200).json({
       success: true,
-      token
-    })
-
+      token,
+    });
   } catch (error) {
-   return res.status(403).json({
-    success: false,
-    message: "Invalid access token"
-   })
-    
+    return res.status(403).json({
+      success: false,
+      message: "Invalid access token",
+    });
   }
-}
+};
 
-export const logout = async (req, res)  => {
+export const logout = async (req, res) => {
   try {
-    await User.findByIdAndUpdate(
-      req.user.userId,
-    {
-      refreshToken: null
-    }
-    );
+    await User.findByIdAndUpdate(req.user.userId, {
+      refreshToken: null,
+    });
 
-    res.clearCookie("refreshToken",{
+    res.clearCookie("refreshToken", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-  });
+    });
 
-  return res.status(200).json({
-    success: true,
-    message: "Logged out successfully"
-  })
-
+    return res.status(200).json({
+      success: true,
+      message: "Logged out successfully",
+    });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Internal server error"
-    })
+      message: "Internal server error",
+    });
   }
-}
+};
 
 export const forgetPassword = async (req, res) => {
   try {
-    const user = await User.findOne({email});
-    if(!user) {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) {
       return res.status(400).json({
         success: false,
-        message: "User not found"
-      })
+        message: "User not found",
+      });
     }
 
     const resetToken = crypto.randomBytes(32).toString("hex");
@@ -243,11 +231,31 @@ export const forgetPassword = async (req, res) => {
     user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
     await user.save();
 
-    return res.status(200).json({
-        success: true,
-        resetToken,
-      });
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: "Password Reset Request",
+      html: `
+    <h2>Password Reset</h2>
+
+    <p>You requested a password reset.</p>
+
+    <a href="${resetUrl}">
+      Reset Password
+    </a>
+
+    <p>This link expires in 15 minutes.</p>
+  `,
+    });
+    console.log(info);
+
+    return res.status(200).json({
+      success: true,
+      resetToken,
+      message: "Password reset email sent successfully",
+    });
   } catch (error) {
     console.error("Forget password Error:", error);
     return res.status(500).json({
@@ -255,33 +263,34 @@ export const forgetPassword = async (req, res) => {
       message: "Internal server error",
     });
   }
-}
+};
 
 export const resetPassword = async (req, res) => {
   try {
-    const {resetToken} = req.params;
-    const {password} = req.body;
+    const { resetToken } = req.params;
+    const { password } = req.body;
 
-    const user = await User.findOne({resetPasswordToken: resetToken, resetPasswordExpire: {$gt: Date.now()}});
-    if(!user) {
+    const user = await User.findOne({
+      resetPasswordToken: resetToken,
+      resetPasswordExpire: { $gt: Date.now() },
+    });
+    if (!user) {
       return res.status(400).json({
         success: false,
-        message: "Invalid token"
-      })
+        message: "Invalid token",
+      });
     }
 
-    user.password = await bcrypt.hash(password, 10)
+    user.password = await bcrypt.hash(password, 10);
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
 
     await user.save();
-    
-     return res.status(200).json({
-        success: true,
-        message:
-          "Password reset successfully",
-      });
 
+    return res.status(200).json({
+      success: true,
+      message: "Password reset successfully",
+    });
   } catch (error) {
     console.error("Reset password Error:", error);
     return res.status(500).json({
@@ -289,4 +298,4 @@ export const resetPassword = async (req, res) => {
       message: "Internal server error",
     });
   }
-}
+};
