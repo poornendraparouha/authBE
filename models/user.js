@@ -21,8 +21,7 @@ const userSchema = mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, "pasword is required"],
-      minlength: 8,
+      default:null,
     },
     phone: {
       type: String,
@@ -54,6 +53,11 @@ const userSchema = mongoose.Schema(
     },
     resetPasswordExpire: {
       type: Date,
+    },
+    provider:{
+      type:String,
+      enum:["local", "google"],
+      default: "local"
     },
   },
   { timestamps: true },

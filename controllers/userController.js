@@ -66,7 +66,7 @@ export const UpdateUser = async (req, res) => {
     ).select("-password -refreshToken");
 
     if(!user) {
-      return res.status(404).jsn({
+      return res.status(404).json({
         success: false,
         mesage: "User not found"
       })
@@ -89,9 +89,9 @@ export const UpdateUser = async (req, res) => {
 
 export const changePassword = async (req, res) => {
   try {
-    const {currentPassword, newPassword} = req.body;
+    const {currenPassword , newPassword} = req.body;
 
-    if(!currenPassword || !newPassword){
+    if(!currenPassword  || !newPassword){
       return res.status(400).json({
         success: false,
         mesage: "current password and new password is required"
@@ -107,7 +107,7 @@ export const changePassword = async (req, res) => {
       })
     }
 
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    const isMatch = await bcrypt.compare(currenPassword, user.password);
 
     if(!isMatch){
       return res.status(400).json({
@@ -118,7 +118,7 @@ export const changePassword = async (req, res) => {
 
     const hashedPassword =  await bcrypt.hash(newPassword, 10);
     user.password = hashedPassword;
-
+    await user.save();
     return res.status(200).json({
       success:true,
       message:"Password changed successfully"

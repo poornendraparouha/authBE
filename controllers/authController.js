@@ -3,6 +3,9 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import transporter from "../utils/sendMail.js";
+import { OAuth2Client } from "google-auth-library";
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const userSignup = async (req, res) => {
   try {
@@ -45,6 +48,7 @@ export const userSignup = async (req, res) => {
 
     const userData = newUser.toObject();
     delete userData.password;
+    delete userData.refreshToken;
 
     return res.status(201).json({
       success: true,
@@ -150,6 +154,74 @@ export const userLogin = async (req, res) => {
   }
 };
 
+export const googleLogin = async (req, res) => {
+  try {
+    const { googleToken } = req.body;
+    if (!googleToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Token is required",
+      });
+    }
+
+    const ticket = await client.verifyIdToken({
+      idToken: googleToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+
+    const { email, given_name, family_name, picture } = payload;
+
+    let user = await User.findOne({ email });
+    if (!user) {
+      user = await User.create({
+        firstName: given_name,
+        lastName: family_name || "",
+        email,
+        profileImage: picture,
+        provider: "google",
+      });
+    }
+    const token = jwt.sign(
+      { userId: user._id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN },
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user._id },
+      process.env.REFRESH_TOKEN_SECRET,
+      { expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN },
+    );
+
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    const userData = user.toObject();
+    delete userData.password;
+    delete userData.refreshToken;
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
+
+    return res.status(200).json({
+      success: true,
+      token,
+      data: userData,
+    });
+  } catch (error) {
+    console.error("Google authentication failed : ", error);
+    return res.status(401).json({
+      success: false,
+      message: "Invalid Google token",
+    });
+  }
+};
+
 export const refreshAccessToken = async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
@@ -187,30 +259,6 @@ export const refreshAccessToken = async (req, res) => {
     return res.status(403).json({
       success: false,
       message: "Invalid access token",
-    });
-  }
-};
-
-export const logout = async (req, res) => {
-  try {
-    await User.findByIdAndUpdate(req.user.userId, {
-      refreshToken: null,
-    });
-
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "Logged out successfully",
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
     });
   }
 };
@@ -300,6 +348,30 @@ export const resetPassword = async (req, res) => {
     });
   } catch (error) {
     console.error("Reset password Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+export const logout = async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.user.userId, {
+      refreshToken: null,
+    });
+
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Logged out successfully",
+    });
+  } catch (error) {
     return res.status(500).json({
       success: false,
       message: "Internal server error",
