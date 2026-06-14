@@ -105,6 +105,7 @@ export const userLogin = async (req, res) => {
       {
         userId: user._id,
         email: user.email,
+        role: user.role
       },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN },
@@ -184,7 +185,7 @@ export const googleLogin = async (req, res) => {
       });
     }
     const token = jwt.sign(
-      { userId: user._id, email: user.email },
+      { userId: user._id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN },
     );
@@ -246,6 +247,7 @@ export const refreshAccessToken = async (req, res) => {
       {
         userId: user._id,
         email: user.email,
+        role: user.role,
       },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN },
