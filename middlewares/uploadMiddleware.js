@@ -1,5 +1,6 @@
 import multer from "multer";
 import path from "path";
+import logger from "../utils/logger.js";
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -22,6 +23,7 @@ const fileFilter = (req, file, cb) => {
   if(allowedTypes.includes(file.mimetype)){
     cb(null, true)
   } else {
+     logger.warn( `INVALID_FILE_TYPE: ${file.mimetype}`);
     cb(new Error("Only image files allowed"), false);
   }
 }
