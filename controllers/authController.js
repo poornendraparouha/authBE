@@ -4,6 +4,8 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import transporter from "../utils/sendMail.js";
 import { OAuth2Client } from "google-auth-library";
+import logger from "../utils/logger.js";
+
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -45,6 +47,7 @@ export const userSignup = async (req, res) => {
       password: hashPassword,
     });
     await newUser.save();
+    logger.info(`User registered: ${email}`);
 
     const userData = newUser.toObject();
     delete userData.password;
@@ -56,7 +59,7 @@ export const userSignup = async (req, res) => {
       data: userData,
     });
   } catch (error) {
-    console.error("Error while sign up : ", error);
+    logger.error(`Signup error: ${error.message}`);
 
     if (error.name === "ValidationError") {
       const messages = Object.values(error.errors).map((err) => err.message);
@@ -87,6 +90,8 @@ export const userLogin = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
+      logger.warn(`Invalid credentials: ${email}`);
+
       return res.status(401).json({
         success: false,
         message: "Invalid credentials",
@@ -95,6 +100,7 @@ export const userLogin = async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      logger.warn(`Invalid password: ${email}`);
       return res.status(401).json({
         success: false,
         message: "Invalid Credentials",
@@ -130,14 +136,17 @@ export const userLogin = async (req, res) => {
       sameSite: "strict",
     });
 
+    logger.info(`User logged in: ${email}`);
+
     return res.status(200).json({
       success: true,
       message: "User logged in successfully",
       token,
       data: userData,
     });
+    
   } catch (error) {
-    console.log("error While sign In", error);
+    logger.error(`Login error: ${error.message}`);
 
     if (error.name === "ValidationError") {
       const messages = Object.values(error.errors).map((err) => err.message);
@@ -183,6 +192,7 @@ export const googleLogin = async (req, res) => {
         profileImage: picture,
         provider: "google",
       });
+      logger.info(`Google signup: ${email}`);
     }
     const token = jwt.sign(
       { userId: user._id, email: user.email, role: user.role },
@@ -198,7 +208,7 @@ export const googleLogin = async (req, res) => {
 
     user.refreshToken = refreshToken;
     await user.save();
-
+    
     const userData = user.toObject();
     delete userData.password;
     delete userData.refreshToken;
@@ -209,13 +219,15 @@ export const googleLogin = async (req, res) => {
       sameSite: "strict",
     });
 
+    logger.info(`Google login: ${email}`);
+
     return res.status(200).json({
       success: true,
       token,
       data: userData,
     });
   } catch (error) {
-    console.error("Google authentication failed : ", error);
+    logger.error(`Google auth error: ${error.message}`);
     return res.status(401).json({
       success: false,
       message: "Invalid Google token",
@@ -228,6 +240,7 @@ export const refreshAccessToken = async (req, res) => {
     const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken) {
+      logger.warn("Refresh token missing");
       return res.status(401).json({
         success: false,
         message: "Missing refresh token",
@@ -237,6 +250,7 @@ export const refreshAccessToken = async (req, res) => {
     const user = await User.findById(decode.userId);
 
     if (!user || user.refreshToken !== refreshToken) {
+      logger.warn("Invalid refresh token");
       return res.status(403).json({
         success: false,
         message: "Invalid access token",
@@ -253,11 +267,14 @@ export const refreshAccessToken = async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRES_IN },
     );
 
+    logger.info(`Access token refreshed: ${user.email}`);
+
     return res.status(200).json({
       success: true,
       token,
     });
   } catch (error) {
+    logger.error(`Refresh token error: ${error.message}`);
     return res.status(403).json({
       success: false,
       message: "Invalid access token",
@@ -270,6 +287,7 @@ export const forgetPassword = async (req, res) => {
     const { email } = req.body;
     const user = await User.findOne({ email });
     if (!user) {
+      logger.warn(`Password reset requested for unknown email: ${email}`);
       return res.status(400).json({
         success: false,
         message: "User not found",
@@ -299,7 +317,7 @@ export const forgetPassword = async (req, res) => {
     <p>This link expires in 15 minutes.</p>
   `,
     });
-    console.log(info);
+    logger.info(`Password reset requested: ${email}`);
 
     return res.status(200).json({
       success: true,
@@ -349,7 +367,7 @@ export const resetPassword = async (req, res) => {
       message: "Password reset successfully",
     });
   } catch (error) {
-    console.error("Reset password Error:", error);
+    logger.error(`Reset password Error: ${error.message}`);
     return res.status(500).json({
       success: false,
       message: "Internal server error",
