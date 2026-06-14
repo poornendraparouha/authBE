@@ -1,7 +1,7 @@
-import User from "../models/user.js";
+import User from "../../models/user.js";
 import bcrypt from "bcryptjs";
 import fs from "fs";
-import logger from "../utils/logger.js";
+import logger from "../../utils/logger.js";
 
 export const userProfile = async (req, res) => {
   try {

@@ -1,10 +1,10 @@
-import User from "../models/user.js";
+import User from "../../models/user.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import transporter from "../utils/sendMail.js";
+import transporter from "../../utils/sendMail.js";
 import { OAuth2Client } from "google-auth-library";
-import logger from "../utils/logger.js";
+import logger from "../../utils/logger.js";
 
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
